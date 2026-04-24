@@ -553,8 +553,8 @@ Die App ruft automatisch diese Function auf:
           throw new Error(fallback.error || "Analyse konnte nicht geladen werden.");
         }
 
-        const data = await response.json();
-        renderAnalysis(data);
+       const data = await response.json();
+renderAnalysis(data);
       } catch (error) {
         renderLocalFallback(payload);
       } finally {
