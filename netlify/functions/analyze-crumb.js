@@ -1,58 +1,88 @@
 exports.handler = async function(event) {
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      body: "Method not allowed"
-    };
-  }
-
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
-    const { image, breadType, hydration, symptoms } = JSON.parse(event.body || "{}");
+    if (event.httpMethod !== "POST") {
+      return {
+        statusCode: 405,
+        headers: { "Content-Type": "text/plain" },
+        body: "Method not allowed"
+      };
+    }
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      return {
+        statusCode: 500,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          error: "OPENAI_API_KEY fehlt in Netlify."
+        })
+      };
+    }
+
+    const body = JSON.parse(event.body || "{}");
+    const { image, breadType, hydration, symptoms } = body;
+
+    if (!image) {
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          error: "Kein Bild erhalten."
+        })
+      };
+    }
+
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
+        "Authorization": "Bearer " + apiKey
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
+        temperature: 0.2,
         response_format: { type: "json_object" },
-        messages: [{
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Analysiere diese Brotkrume. Antworte nur als JSON mit:
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text:
+`Analysiere dieses Sauerteigbrot anhand der Krume.
+
+Antworte NUR als gültiges JSON in dieser Struktur:
 {
-"title":"",
-"gare":"",
-"mainIssue":"",
-"confidence":75,
-"summary":"",
-"signs":[],
-"tips":[]
+  "title": "kurzer Titel",
+  "gare": "z.B. Untergare / Übergare / gute Gare / unklar",
+  "mainIssue": "Hauptproblem",
+  "confidence": 75,
+  "summary": "kurzes Fazit",
+  "signs": ["Hinweis 1", "Hinweis 2"],
+  "tips": ["Tipp 1", "Tipp 2", "Tipp 3"]
 }
 
-Brotart: ${breadType}
-Hydration: ${hydration}
-Auffälligkeiten: ${symptoms}`
-            },
-            {
-              type: "image_url",
-              image_url: { url: image }
-            }
-          ]
-        }]
+Brotart: ${breadType || "unbekannt"}
+Hydration: ${hydration || "unbekannt"}
+Auffälligkeiten: ${symptoms || "keine Angabe"}`
+              },
+              {
+                type: "image_url",
+                image_url: { url: image }
+              }
+            ]
+          }
+        ]
       })
     });
 
-    const raw = await response.text();
+    const raw = await openaiRes.text();
 
-    if (!response.ok) {
+    if (!openaiRes.ok) {
       return {
         statusCode: 500,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           error: "OpenAI Fehler",
           details: raw
@@ -60,28 +90,39 @@ Auffälligkeiten: ${symptoms}`
       };
     }
 
-    const data = JSON.parse(raw);
-   const content = data.choices[0].message.content;
+    const openaiData = JSON.parse(raw);
+    const content = openaiData.choices?.[0]?.message?.content || "{}";
 
-return {
-  statusCode: 200,
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    title: "KI-Analyse deiner Krume",
-    gare: "Einschätzung",
-    mainIssue: "Krume analysiert",
-    confidence: 75,
-    summary: content,
-    signs: [],
-    tips: []
-  })
-};
+    let parsed;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      parsed = {
+        title: "KI-Analyse deiner Krume",
+        gare: "Einschätzung",
+        mainIssue: "Krume analysiert",
+        confidence: 75,
+        summary: content,
+        signs: [],
+        tips: []
+      };
+    }
+
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(parsed)
+    };
 
   } catch (error) {
+    console.error("FUNCTION ERROR:", error);
+
     return {
       statusCode: 500,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        error: error.message
+        error: "Function Fehler",
+        details: error.message
       })
     };
   }
