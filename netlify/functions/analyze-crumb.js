@@ -8,15 +8,7 @@ exports.handler = async function(event) {
 
   try {
     const apiKey = process.env.OPENAI_API_KEY;
-
-    if (!apiKey) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: "OPENAI_API_KEY fehlt" })
-      };
-    }
-
-    const { image, breadType, hydration, symptoms } = JSON.parse(event.body);
+    const { image, breadType, hydration, symptoms } = JSON.parse(event.body || "{}");
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -26,46 +18,64 @@ exports.handler = async function(event) {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: `Analysiere die Krume eines Sauerteigbrots.
+        response_format: { type: "json_object" },
+        messages: [{
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Analysiere diese Brotkrume. Antworte nur als JSON mit:
+{
+"title":"",
+"gare":"",
+"mainIssue":"",
+"confidence":75,
+"summary":"",
+"signs":[],
+"tips":[]
+}
 
 Brotart: ${breadType}
 Hydration: ${hydration}
-Auffälligkeiten: ${symptoms}
-
-Gib zurück:
-- Gare
-- Hauptproblem
-- Tipps`
-              },
-              {
-                type: "image_url",
-                image_url: { url: image }
-              }
-            ]
-          }
-        ]
+Auffälligkeiten: ${symptoms}`
+            },
+            {
+              type: "image_url",
+              image_url: { url: image }
+            }
+          ]
+        }]
       })
     });
 
-    const data = await response.json();
+    const raw = await response.text();
+
+    if (!response.ok) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: "OpenAI Fehler",
+          details: raw
+        })
+      };
+    }
+
+    const data = JSON.parse(raw);
+    const content = data.choices[0].message.content;
+    const parsed = JSON.parse(content);
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        result: data.choices[0].message.content
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(parsed)
     };
 
   } catch (error) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({
+        error: error.message
+      })
     };
   }
 };
