@@ -550,8 +550,11 @@ Die App ruft automatisch diese Function auf:
 
         if (!response.ok) {
           const fallback = await response.json().catch(() => ({}));
-          throw new Error(fallback.error || "Analyse konnte nicht geladen werden.");
-        }
+         throw new Error(
+  (fallback.error || "Analyse konnte nicht geladen werden.") +
+  "\n\n" +
+  (fallback.details || "Keine weiteren Details vorhanden.")
+);
 
   const data = await response.json();
 
