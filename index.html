@@ -564,27 +564,15 @@ if (!response.ok) {
 }
 
     // 👉 HIER ist der wichtige Fix
-    let parsed;
-
-    try {
-      parsed = JSON.parse(data.result);
-    } catch {
-      parsed = {
-        title: "Analyse",
-        summary: data.result
-      };
-    }
-
     renderAnalysis({
-      title: parsed.title,
-      gare: parsed.gare,
-      mainIssue: parsed.mainIssue,
-      confidence: parsed.confidence || 75,
-      summary: parsed.summary,
-      signs: parsed.signs || [],
-      tips: parsed.tips || []
-    });
-
+  title: data.title,
+  gare: data.gare,
+  mainIssue: data.mainIssue,
+  confidence: data.confidence || 75,
+  summary: data.summary,
+  signs: data.signs || [],
+  tips: data.tips || []
+});
   } catch (error) {
     result.className = "analysis";
     result.innerHTML = `
