@@ -550,11 +550,18 @@ analyzeBtn.addEventListener("click", async () => {
       body: JSON.stringify(payload)
     });
 
-    const data = await response.json();
+    const raw = await response.text();
 
-    if (!response.ok) {
-      throw new Error((data.error || "Analyse fehlgeschlagen") + "\n\n" + (data.details || ""));
-    }
+let data;
+try {
+  data = JSON.parse(raw);
+} catch {
+  throw new Error(raw || "Server hat keine lesbare Antwort zurückgegeben.");
+}
+
+if (!response.ok) {
+  throw new Error((data.error || "Analyse fehlgeschlagen") + "\n\n" + (data.details || ""));
+}
 
     // 👉 HIER ist der wichtige Fix
     let parsed;
