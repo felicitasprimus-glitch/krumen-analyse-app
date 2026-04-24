@@ -547,7 +547,18 @@ analyzeBtn.addEventListener("click", async () => {
       throw new Error((data.error || "Analyse konnte nicht geladen werden.") + "\n\n" + (data.details || ""));
     }
 
-    renderAnalysis(data);
+    let parsed;
+
+try {
+  parsed = JSON.parse(data.result);
+} catch {
+  parsed = {
+    title: "Analyse",
+    summary: data.result
+  };
+}
+
+renderAnalysis(parsed);
   } catch (error) {
     result.className = "analysis";
     result.innerHTML = `
