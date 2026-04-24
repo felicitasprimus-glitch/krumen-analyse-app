@@ -543,75 +543,25 @@ analyzeBtn.addEventListener("click", async () => {
 
     const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error((data.error || "Analyse konnte nicht geladen werden.") + "\n\n" + (data.details || ""));
-    }
-
-    let parsed;
+    
+let parsed;
 
 try {
   parsed = JSON.parse(data.result);
-} catch {
+} catch (e) {
+  console.log("Parse Fehler:", e);
   parsed = {
     title: "Analyse",
     summary: data.result
   };
 }
 
-renderAnalysis(parsed);
-  } catch (error) {
-    result.className = "analysis";
-    result.innerHTML = `
-      <h2>Fehler bei der KI-Analyse</h2>
-      <div class="box">
-        <strong>Technischer Fehler:</strong><br/>
-        ${escapeHtml(error.message)}
-      </div>
-    `;
-  } finally {
-    loading.style.display = "none";
-    analyzeBtn.disabled = false;
-  }
+renderAnalysis({
+  title: parsed.title,
+  gare: parsed.gare,
+  mainIssue: parsed.mainIssue,
+  confidence: parsed.confidence || 75,
+  summary: parsed.summary,
+  signs: parsed.signs || [],
+  tips: parsed.tips || []
 });
-
-function renderAnalysis(data){
-  const confidence = Number(data.confidence || 75);
-  result.className = "analysis";
-  result.innerHTML = `
-    <h2>${escapeHtml(data.title || "KI-Analyse deiner Krume")}</h2>
-    <span class="badge">${escapeHtml(data.gare || "Einschätzung")}</span>
-    <span class="badge">${escapeHtml(data.mainIssue || "Krume analysiert")}</span>
-
-    <div class="score">
-      <strong>Sicherheit der Einschätzung: ${confidence}%</strong>
-      <div class="bar-wrap"><div class="bar" style="width:${Math.min(100, Math.max(0, confidence))}%"></div></div>
-    </div>
-
-    <div class="box"><strong>Kurzfazit:</strong><br/>${escapeHtml(data.summary || data.result || "")}</div>
-
-    <div class="box"><strong>Woran man es erkennt:</strong>
-      <ul>${(data.signs || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
-    </div>
-
-    <div class="box"><strong>Was du beim nächsten Brot ändern kannst:</strong>
-      <ul>${(data.tips || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
-    </div>
-
-    <button class="btn secondary" onclick="copyResult()">Ergebnis kopieren</button>
-  `;
-}
-
-function escapeHtml(str){
-  return String(str)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-function copyResult(){
-  navigator.clipboard.writeText(result.innerText);
-  alert("Analyse kopiert.");
-}
-</script>
