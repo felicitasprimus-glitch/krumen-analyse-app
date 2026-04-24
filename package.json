@@ -1,0 +1,6 @@
+{
+  "name": "krume-analyse-app",
+  "version": "1.1.0",
+  "description": "Krume Analyzer ohne externe Function-Abh\u00e4ngigkeiten",
+  "scripts": {}
+}
