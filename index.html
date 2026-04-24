@@ -553,8 +553,21 @@ Die App ruft automatisch diese Function auf:
           throw new Error(fallback.error || "Analyse konnte nicht geladen werden.");
         }
 
-       const data = await response.json();
-renderAnalysis(data);
+  const data = await response.json();
+
+if (data.result) {
+  renderAnalysis({
+    title: "KI-Analyse deiner Krume",
+    gare: "Einschätzung",
+    mainIssue: "Krume analysiert",
+    confidence: 75,
+    summary: data.result,
+    signs: [],
+    tips: []
+  });
+} else {
+  renderAnalysis(data);
+}
       } catch (error) {
         renderLocalFallback(payload);
       } finally {
