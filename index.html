@@ -484,7 +484,7 @@ Die App ruft automatisch diese Function auf:
     <div class="footer">Made for sauer macht krustig · Krume Analyzer</div>
   </main>
 
- <script>
+<script>
 const tabs = document.querySelectorAll(".tab");
 const panels = document.querySelectorAll(".panel");
 const fileInput = document.getElementById("fileInput");
@@ -506,6 +506,12 @@ tabs.forEach(tab => {
 fileInput.addEventListener("change", async (event) => {
   const file = event.target.files[0];
   if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    alert("Bitte lade ein Bild hoch.");
+    return;
+  }
+
   imageBase64 = await toBase64(file);
   preview.src = imageBase64;
   preview.style.display = "block";
@@ -522,8 +528,11 @@ function toBase64(file){
 }
 
 analyzeBtn.addEventListener("click", async () => {
+  if (!imageBase64) return;
+
   loading.style.display = "flex";
   analyzeBtn.disabled = true;
+
   result.className = "result-empty";
   result.innerHTML = "<div><strong>Analyse läuft...</strong><br/>Die Krume wird ausgewertet.</div>";
 
@@ -543,25 +552,97 @@ analyzeBtn.addEventListener("click", async () => {
 
     const data = await response.json();
 
-    
-let parsed;
+    if (!response.ok) {
+      throw new Error((data.error || "Analyse fehlgeschlagen") + "\n\n" + (data.details || ""));
+    }
 
-try {
-  parsed = JSON.parse(data.result);
-} catch (e) {
-  console.log("Parse Fehler:", e);
-  parsed = {
-    title: "Analyse",
-    summary: data.result
-  };
+    // 👉 HIER ist der wichtige Fix
+    let parsed;
+
+    try {
+      parsed = JSON.parse(data.result);
+    } catch {
+      parsed = {
+        title: "Analyse",
+        summary: data.result
+      };
+    }
+
+    renderAnalysis({
+      title: parsed.title,
+      gare: parsed.gare,
+      mainIssue: parsed.mainIssue,
+      confidence: parsed.confidence || 75,
+      summary: parsed.summary,
+      signs: parsed.signs || [],
+      tips: parsed.tips || []
+    });
+
+  } catch (error) {
+    result.className = "analysis";
+    result.innerHTML = `
+      <h2>Technischer Fehler</h2>
+      <div class="box">
+        ${escapeHtml(error.message)}
+      </div>
+    `;
+  } finally {
+    loading.style.display = "none";
+    analyzeBtn.disabled = false;
+  }
+});
+
+function renderAnalysis(data){
+  const confidence = Number(data.confidence || 75);
+
+  result.className = "analysis";
+  result.innerHTML = `
+    <h2>${escapeHtml(data.title || "Analyse deiner Krume")}</h2>
+
+    <span class="badge">${escapeHtml(data.gare || "")}</span>
+    <span class="badge">${escapeHtml(data.mainIssue || "")}</span>
+
+    <div class="score">
+      <strong>Sicherheit der Einschätzung: ${confidence}%</strong>
+      <div class="bar-wrap">
+        <div class="bar" style="width:${confidence}%"></div>
+      </div>
+    </div>
+
+    <div class="box">
+      <strong>Kurzfazit:</strong><br/>
+      ${escapeHtml(data.summary || "")}
+    </div>
+
+    <div class="box">
+      <strong>Woran man es erkennt:</strong>
+      <ul>
+        ${(data.signs || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}
+      </ul>
+    </div>
+
+    <div class="box">
+      <strong>Was du beim nächsten Brot ändern kannst:</strong>
+      <ul>
+        ${(data.tips || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}
+      </ul>
+    </div>
+
+    <button class="btn secondary" onclick="copyResult()">Ergebnis kopieren</button>
+  `;
 }
 
-renderAnalysis({
-  title: parsed.title,
-  gare: parsed.gare,
-  mainIssue: parsed.mainIssue,
-  confidence: parsed.confidence || 75,
-  summary: parsed.summary,
-  signs: parsed.signs || [],
-  tips: parsed.tips || []
-});
+function escapeHtml(str){
+  return String(str)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function copyResult(){
+  navigator.clipboard.writeText(result.innerText);
+  alert("Analyse kopiert.");
+}
+</script>
