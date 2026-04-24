@@ -52,6 +52,13 @@ exports.handler = async function(event) {
                 text:
 `Analysiere dieses Sauerteigbrot anhand der Krume.
 
+WICHTIG:
+- Verlasse dich PRIMÄR auf das Bild.
+- Die Angaben (Brotart, Symptome) können falsch sein.
+- Wenn Bild und Angaben widersprechen, hat das Bild Vorrang.
+- Korrigiere falsche Annahmen aktiv.
+- Wenn die Krume gut ist, sag das klar und gib keine unnötigen Korrekturtipps.
+
 Antworte NUR als gültiges JSON in dieser Struktur:
 {
   "title": "kurzer Titel",
