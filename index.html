@@ -568,9 +568,16 @@ if (data.result) {
 } else {
   renderAnalysis(data);
 }
-      } catch (error) {
-        renderLocalFallback(payload);
-      } finally {
+     } catch (error) {
+  result.className = "analysis";
+  result.innerHTML = `
+    <h2>Fehler bei der KI-Analyse</h2>
+    <div class="box">
+      <strong>Technischer Fehler:</strong><br/>
+      ${escapeHtml(error.message)}
+    </div>
+  `;
+}finally {
         loading.style.display = "none";
         analyzeBtn.disabled = false;
       }
