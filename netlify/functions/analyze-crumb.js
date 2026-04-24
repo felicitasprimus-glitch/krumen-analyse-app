@@ -61,14 +61,21 @@ Auffälligkeiten: ${symptoms}`
     }
 
     const data = JSON.parse(raw);
-    const content = data.choices[0].message.content;
-    const parsed = JSON.parse(content);
+   const content = data.choices[0].message.content;
 
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(parsed)
-    };
+return {
+  statusCode: 200,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    title: "KI-Analyse deiner Krume",
+    gare: "Einschätzung",
+    mainIssue: "Krume analysiert",
+    confidence: 75,
+    summary: content,
+    signs: [],
+    tips: []
+  })
+};
 
   } catch (error) {
     return {
