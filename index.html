@@ -484,204 +484,123 @@ Die App ruft automatisch diese Function auf:
     <div class="footer">Made for sauer macht krustig · Krume Analyzer</div>
   </main>
 
-  <script>
-    const tabs = document.querySelectorAll(".tab");
-    const panels = document.querySelectorAll(".panel");
-    const fileInput = document.getElementById("fileInput");
-    const preview = document.getElementById("preview");
-    const analyzeBtn = document.getElementById("analyzeBtn");
-    const loading = document.getElementById("loading");
-    const result = document.getElementById("result");
-    let imageBase64 = "";
+ <script>
+const tabs = document.querySelectorAll(".tab");
+const panels = document.querySelectorAll(".panel");
+const fileInput = document.getElementById("fileInput");
+const preview = document.getElementById("preview");
+const analyzeBtn = document.getElementById("analyzeBtn");
+const loading = document.getElementById("loading");
+const result = document.getElementById("result");
+let imageBase64 = "";
 
-    tabs.forEach(tab => {
-      tab.addEventListener("click", () => {
-        tabs.forEach(t => t.classList.remove("active"));
-        panels.forEach(p => p.classList.remove("active"));
-        tab.classList.add("active");
-        document.getElementById(tab.dataset.tab).classList.add("active");
-      });
+tabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+    tabs.forEach(t => t.classList.remove("active"));
+    panels.forEach(p => p.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById(tab.dataset.tab).classList.add("active");
+  });
+});
+
+fileInput.addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  imageBase64 = await toBase64(file);
+  preview.src = imageBase64;
+  preview.style.display = "block";
+  analyzeBtn.disabled = false;
+});
+
+function toBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+analyzeBtn.addEventListener("click", async () => {
+  loading.style.display = "flex";
+  analyzeBtn.disabled = true;
+  result.className = "result-empty";
+  result.innerHTML = "<div><strong>Analyse läuft...</strong><br/>Die Krume wird ausgewertet.</div>";
+
+  const payload = {
+    image: imageBase64,
+    breadType: document.getElementById("breadType").value,
+    hydration: document.getElementById("hydration").value,
+    symptoms: document.getElementById("symptoms").value
+  };
+
+  try {
+    const response = await fetch("/.netlify/functions/analyze-crumb", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
     });
 
-    fileInput.addEventListener("change", async (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
-      if (!file.type.startsWith("image/")) {
-        alert("Bitte lade ein Bild hoch.");
-        return;
-      }
+    const data = await response.json();
 
-      imageBase64 = await toBase64(file);
-      preview.src = imageBase64;
-      preview.style.display = "block";
-      analyzeBtn.disabled = false;
-    });
-
-    function toBase64(file){
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+    if (!response.ok) {
+      throw new Error((data.error || "Analyse konnte nicht geladen werden.") + "\n\n" + (data.details || ""));
     }
 
-    analyzeBtn.addEventListener("click", async () => {
-      if (!imageBase64) return;
+    renderAnalysis(data);
+  } catch (error) {
+    result.className = "analysis";
+    result.innerHTML = `
+      <h2>Fehler bei der KI-Analyse</h2>
+      <div class="box">
+        <strong>Technischer Fehler:</strong><br/>
+        ${escapeHtml(error.message)}
+      </div>
+    `;
+  } finally {
+    loading.style.display = "none";
+    analyzeBtn.disabled = false;
+  }
+});
 
-      loading.style.display = "flex";
-      analyzeBtn.disabled = true;
-      result.className = "result-empty";
-      result.innerHTML = "<div><strong>Analyse läuft...</strong><br/>Die Krume wird ausgewertet.</div>";
-
-      const payload = {
-        image: imageBase64,
-        breadType: document.getElementById("breadType").value,
-        hydration: document.getElementById("hydration").value,
-        symptoms: document.getElementById("symptoms").value
-      };
-
-      try {
-        const response = await fetch("/.netlify/functions/analyze-crumb", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-          const fallback = await response.json().catch(() => ({}));
-         throw new Error(
-  (fallback.error || "Analyse konnte nicht geladen werden.") +
-  "\n\n" +
-  (fallback.details || "Keine weiteren Details vorhanden.")
-);
-
-  const data = await response.json();
-
-if (data.result) {
-  renderAnalysis({
-    title: "KI-Analyse deiner Krume",
-    gare: "Einschätzung",
-    mainIssue: "Krume analysiert",
-    confidence: 75,
-    summary: data.result,
-    signs: [],
-    tips: []
-  });
-} else {
-  renderAnalysis(data);
-}
-     } catch (error) {
+function renderAnalysis(data){
+  const confidence = Number(data.confidence || 75);
   result.className = "analysis";
   result.innerHTML = `
-    <h2>Fehler bei der KI-Analyse</h2>
-    <div class="box">
-      <strong>Technischer Fehler:</strong><br/>
-      ${escapeHtml(error.message)}
+    <h2>${escapeHtml(data.title || "KI-Analyse deiner Krume")}</h2>
+    <span class="badge">${escapeHtml(data.gare || "Einschätzung")}</span>
+    <span class="badge">${escapeHtml(data.mainIssue || "Krume analysiert")}</span>
+
+    <div class="score">
+      <strong>Sicherheit der Einschätzung: ${confidence}%</strong>
+      <div class="bar-wrap"><div class="bar" style="width:${Math.min(100, Math.max(0, confidence))}%"></div></div>
     </div>
+
+    <div class="box"><strong>Kurzfazit:</strong><br/>${escapeHtml(data.summary || data.result || "")}</div>
+
+    <div class="box"><strong>Woran man es erkennt:</strong>
+      <ul>${(data.signs || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
+    </div>
+
+    <div class="box"><strong>Was du beim nächsten Brot ändern kannst:</strong>
+      <ul>${(data.tips || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
+    </div>
+
+    <button class="btn secondary" onclick="copyResult()">Ergebnis kopieren</button>
   `;
-}finally {
-        loading.style.display = "none";
-        analyzeBtn.disabled = false;
-      }
-    });
+}
 
-    function renderAnalysis(data){
-      const confidence = Number(data.confidence || 72);
-      result.className = "analysis";
-      result.innerHTML = `
-        <h2>${escapeHtml(data.title || "Analyse deiner Krume")}</h2>
-        <span class="badge">${escapeHtml(data.gare || "Einschätzung")}</span>
-        <span class="badge">${escapeHtml(data.mainIssue || "Krume")}</span>
+function escapeHtml(str){
+  return String(str)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
 
-        <div class="score">
-          <strong>Sicherheit der Einschätzung: ${confidence}%</strong>
-          <div class="bar-wrap"><div class="bar" style="width:${Math.min(100, Math.max(0, confidence))}%"></div></div>
-        </div>
-
-        <div class="box"><strong>Kurzfazit:</strong><br/>${escapeHtml(data.summary || "")}</div>
-
-        <div class="box"><strong>Woran man es erkennt:</strong>
-          <ul>${(data.signs || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
-        </div>
-
-        <div class="box"><strong>Was du beim nächsten Brot ändern kannst:</strong>
-          <ul>${(data.tips || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
-        </div>
-
-        <button class="btn secondary" onclick="copyResult()">Ergebnis kopieren</button>
-      `;
-    }
-
-    function renderLocalFallback(payload){
-      const text = (payload.symptoms || "").toLowerCase();
-      let gare = "Tendenz: gemischte Ursache";
-      let issue = "Formen, Gare oder Backzeit prüfen";
-      let tips = [
-        "Beim nächsten Mal Teigtemperatur und Volumenzunahme notieren.",
-        "Vor dem Formen auf ausreichend Spannung achten.",
-        "Brot komplett auskühlen lassen, bevor du die Krume bewertest."
-      ];
-
-      if (text.includes("breit") || text.includes("flach") || text.includes("klebrig")) {
-        gare = "Tendenz: eher Übergare oder zu wenig Teigstärke";
-        issue = "Teig war vermutlich zu weich oder zu weit";
-        tips = [
-          "Stockgare etwas früher beenden oder kühler führen.",
-          "Mehr Spannung beim Formen aufbauen.",
-          "Bei sehr weichem Teig Hydration leicht reduzieren."
-        ];
-      }
-
-      if (text.includes("tunnel") || text.includes("große löcher") || text.includes("dicht")) {
-        gare = "Tendenz: eher Untergare oder ungleichmäßiges Formen";
-        issue = "Große Löcher neben dichten Bereichen";
-        tips = [
-          "Stockgare etwas länger laufen lassen und Volumen beobachten.",
-          "Beim Formen große Luftblasen sanft verteilen.",
-          "Starter wirklich am Peak verwenden."
-        ];
-      }
-
-      if (text.includes("feucht") || text.includes("klitsch") || text.includes("gummi")) {
-        gare = "Tendenz: Backzeit, Auskühlen oder Fermentation prüfen";
-        issue = "Krume wirkt feucht oder gummiartig";
-        tips = [
-          "Brot länger ausbacken und Kerntemperatur prüfen.",
-          "Mindestens 2 Stunden auskühlen lassen.",
-          "Bei Vollkorn oder Dinkel Hydration vorsichtig anpassen."
-        ];
-      }
-
-      renderAnalysis({
-        title: "Vorläufige Analyse",
-        gare,
-        mainIssue: issue,
-        confidence: 58,
-        summary: "Die echte KI-Analyse ist noch nicht verbunden oder der Server hat nicht geantwortet. Ich zeige dir deshalb eine lokale Ersteinschätzung anhand deiner Angaben.",
-        signs: [
-          "Foto wurde hochgeladen.",
-          "Zusatzangaben wurden berücksichtigt.",
-          "Für eine präzisere Auswertung bitte OpenAI API-Key in Netlify hinterlegen."
-        ],
-        tips
-      });
-    }
-
-    function escapeHtml(str){
-      return String(str)
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
-    }
-
-    function copyResult(){
-      const text = result.innerText;
-      navigator.clipboard.writeText(text);
-      alert("Analyse kopiert.");
-    }
-  </script>
-</body>
-</html>
+function copyResult(){
+  navigator.clipboard.writeText(result.innerText);
+  alert("Analyse kopiert.");
+}
+</script>
