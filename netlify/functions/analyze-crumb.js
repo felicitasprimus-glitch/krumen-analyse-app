@@ -63,7 +63,9 @@ Antworte NUR als gültiges JSON in dieser Struktur:
   "tips": ["Tipp 1", "Tipp 2", "Tipp 3"]
 }
 
-Brotart: ${breadType || "unbekannt"}
+Brotart: ${breadType === "Brotart unbekannt, bitte nur anhand des Fotos vorsichtig analysieren"
+  ? "Die Brotart ist unbekannt. Analysiere nur anhand der Krume und formuliere vorsichtig."
+  : "Brotart: " + breadType}
 Hydration: ${hydration || "unbekannt"}
 Auffälligkeiten: ${symptoms || "keine Angabe"}`
               },
