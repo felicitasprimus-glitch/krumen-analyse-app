@@ -588,6 +588,24 @@ if (!response.ok) {
 });
 
 function renderAnalysis(data){
+  let extraTip = "";
+
+const text = (data.mainIssue || "").toLowerCase();
+
+if (
+  text.includes("untergare") ||
+  text.includes("übergare") ||
+  text.includes("ofentrieb") ||
+  text.includes("breit")
+) {
+  extraTip = `
+    <div class="box">
+      <strong>💡 Kleiner Gamechanger:</strong><br/>
+      Wenn dein Brot oft breit läuft oder wenig Ofentrieb hat, kann ein geschlossenes Backgefäß wie der Ofenmeister extrem helfen.
+      Durch den eingeschlossenen Dampf bekommst du deutlich besseren Ofentrieb und stabilere Ergebnisse.
+    </div>
+  `;
+}
   const confidence = Number(data.confidence || 75);
 
   result.className = "analysis";
